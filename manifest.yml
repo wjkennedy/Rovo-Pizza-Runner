@@ -1,0 +1,126 @@
+app:
+  id: ari:cloud:ecosystem::app/0a0192ab-6e75-4837-93af-94bbb87cb687
+  runtime:
+    name: nodejs22.x
+
+modules:
+  rovo:agent:
+    - key: pizza-runner-agent
+      name: "Pizza Runner"
+      description: "Quotes and orders Domino’s US (quote first, explicit confirm required)."
+      prompt: |
+        You are Pizza Runner, a careful ordering assistant.
+        Rules:
+        1) Always gather missing info before calling actions.
+        2) Always call quote-pizza-order first.
+        3) Present a clear order summary + quote.
+        4) Only place the order if the user explicitly confirms.
+        5) Then call place-pizza-order with confirm=true and the orderToken from the quote.
+      actions:
+        - get-dominos-menu
+        - quote-pizza-order
+        - place-pizza-order
+
+  action:
+    - key: get-dominos-menu
+      name: "Get Domino’s menu (US)"
+      function: getDominosMenu
+      actionVerb: GET
+      description: "Fetch structured menu for a store and optionally filter by a search term."
+      inputs:
+        storeId:
+          title: Store ID
+          type: string
+          required: true
+          description: "Domino’s store ID (StoreID) to fetch the menu for."
+        search:
+          title: Search
+          type: string
+          required: false
+          description: "Optional filter term like 'pepperoni', 'hand tossed', 'large'."
+
+    - key: quote-pizza-order
+      name: "Quote pizza order"
+      function: quotePizzaOrder
+      actionVerb: GET
+      description: "Build a Domino’s order draft and return a price quote + summary."
+      inputs:
+        addressLine1:
+          title: Address line 1
+          type: string
+          required: true
+          description: "Street address for delivery/carryout store lookup."
+        addressLine2:
+          title: Address line 2
+          type: string
+          required: false
+          description: "Apartment, suite, unit, etc."
+        city:
+          title: City
+          type: string
+          required: true
+          description: "Delivery city."
+        region:
+          title: State
+          type: string
+          required: true
+          description: "US state abbreviation (e.g., NY)."
+        postalCode:
+          title: ZIP code
+          type: string
+          required: true
+          description: "US ZIP code."
+        phone:
+          title: Phone
+          type: string
+          required: true
+          description: "Phone number for the order."
+        email:
+          title: Email
+          type: string
+          required: true
+          description: "Email for the order."
+        itemsJson:
+          title: Items JSON
+          type: string
+          required: true
+          description: "JSON array of Domino’s Products objects (e.g. [{\"Code\":\"14SCREEN\",\"Qty\":1}])."
+        serviceMethod:
+          title: Service method
+          type: string
+          required: false
+          description: "DELIVERY (default) or CARRYOUT."
+
+    - key: place-pizza-order
+      name: "Place pizza order"
+      function: placePizzaOrder
+      actionVerb: CREATE
+      description: "Places the previously-quoted order (requires confirm=true)."
+      inputs:
+        orderToken:
+          title: Order token
+          type: string
+          required: true
+          description: "Token returned from quote-pizza-order."
+        confirm:
+          title: User confirmation
+          type: boolean
+          required: true
+          description: "Must be true to place the order."
+
+  function:
+    - key: getDominosMenu
+      handler: index.getDominosMenu
+    - key: quotePizzaOrder
+      handler: index.quotePizzaOrder
+    - key: placePizzaOrder
+      handler: index.placePizzaOrder
+
+permissions:
+  scopes:
+    - read:chat:rovo
+    - storage:app
+  external:
+    fetch:
+      backend:
+        - "https://order.dominos.com"
